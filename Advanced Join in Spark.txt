@@ -1,0 +1,165 @@
+Advanced Join in Spark
+
+1. pyspark setup
+
+2. Verify the input data
+
+Make sure the 6 files are available in HDFS input_join2 folder
+
+[cloudera@quickstart ~]$ hdfs dfs -ls input_join2/
+Found 6 items
+-rw-r--r--   1 cloudera cloudera       1714 2016-06-19 08:42 input_join2/join2_genchanA.txt
+-rw-r--r--   1 cloudera cloudera       3430 2016-06-19 08:42 input_join2/join2_genchanB.txt
+-rw-r--r--   1 cloudera cloudera       5152 2016-06-19 08:42 input_join2/join2_genchanC.txt
+-rw-r--r--   1 cloudera cloudera      17114 2016-06-19 08:42 input_join2/join2_gennumA.txt
+-rw-r--r--   1 cloudera cloudera      34245 2016-06-19 08:42 input_join2/join2_gennumB.txt
+-rw-r--r--   1 cloudera cloudera      51400 2016-06-19 08:42 input_join2/join2_gennumC.txt
+
+3. The Goal of the programming assignment
+
+The gennum files contain show names and their number of viewers, while the genchan files contain show names and their channel. We want to find out the total number of viewers across all the shows of channel BAT.
+
+4. Read shows files
+
+4.1 we can use -cat on Cloudera counsole to show the files already on HDFS, e.g.:
+
+[cloudera@quickstart ~]$ hdfs dfs -cat input_join2/join2_genchanA.txt
+Hourly_Sports,DEF
+Baked_News,BAT
+PostModern_Talking,XYZ
+.....................
+
+[cloudera@quickstart ~]$ hdfs dfs -cat input_join2/join2_gennumA.txt
+Hot_Show,234
+Baked_News,425
+Hourly_Cooking,808
+.....................
+
+4.2 using pySpark shell
+
+The gennum files contain show names and the number of viewers. You can read them into Spark with a pattern matching, see the ? which will match either A, B or C:
+
+In [34]: show_views_file = sc.textFile("input_join2/join2_gennum?.txt")
+
+Remember that you can check by copying some elements of the dataset what Spark is doing :
+
+In [35]: show_views_file.take(2)
+Out[35]: [u'Hourly_Sports,21', u'PostModern_Show,38']
+
+5. Parse shows files
+
+Next you need to write a function that splits and parses each line of the dataset.
+
+In [38]: def split_show_views(line):
+   ....:         line = line.strip()       	# strip out carriage return
+   ....:         key_value  = line.split(',')   # split line, into key and value, returns a list
+   ....:         show = key_value[0]
+   ....:         views = key_value[1]
+   ....:         return (show, views)
+   ....: 
+
+Then you can use this function to transform the input RDD:
+
+In [39]: show_views = show_views_file.map(split_show_views)
+
+Check the show_views RDD is what you expect:
+
+In [40]: show_views.take(2)
+Out[40]: [(u'Hourly_Sports', u'21'), (u'PostModern_Show', u'38')]
+
+6. Read channel files
+
+The genchan fies contain show names and channel. You can read into Spark all of them with a pattern matching ? which will match A, B, or C:
+
+In [41]: show_channel_file = sc.textFile("input_join2/join2_genchan?.txt")
+
+Check the file read in Spark:
+In [43]: show_channel_file.take(2)
+Out[43]: [u'Hourly_Sports,DEF', u'Baked_News,BAT']
+
+7. Parse channel files
+
+Write a function to parse each line of the dataset:
+
+In [44]: def split_show_channel(line):
+   ....:         line = line.strip()       	# strip out carriage return
+   ....:         key_value  = line.split(',')   # split line, into key and value, returns a list
+   ....:         show = key_value[0]
+   ....:         channel = key_value[1]
+   ....:         return (show, channel)
+   ....: 
+
+In [45]: test_line_channel = "Hourly_Sports,DEF"
+In [47]: split_show_channel(test_line_channel)
+Out[47]: ('Hourly_Sports', 'DEF')
+
+Use it to parse the channel files:
+
+In [48]: show_channel = show_channel_file.map(split_show_channel)
+
+Check the result:
+
+In [49]: show_channel.take(2)
+Out[49]: [(u'Hourly_Sports', u'DEF'), (u'Baked_News', u'BAT')]
+
+
+8. Join the two datasets
+
+At this point you should use the join transformation to join the two datasets using the show name as the key.
+
+You can join the dataset in any order, as long as you are consistent, both are fine.
+
+In [50]: joined_dataset = show_channel.join(show_views)
+
+Check the result:
+
+In [52]: joined_dataset.take(2)
+Out[52]: 
+[(u'PostModern_Cooking', (u'DEF', u'1038')),
+ (u'PostModern_Cooking', (u'DEF', u'415'))]
+
+9. Extract channel as key
+
+You want to find the total number of viewers by channel, so you need to create an RDD with the channel as key and all the viewer counts, whichever is the show.
+
+In [53]: def extract_channel_views(show_views_channel): 
+   ....:         show = show_views_channel[0]
+   ....:        channel_views = show_views_channel[1]
+   ....:        channel = channel_views[0]
+   ....:        views = int(channel_views[1])
+   ....:         return (channel, views)
+   ....: 
+
+Now you can apply this function to the joined dataset to create an RDD of channel and views:
+
+In [54]:  channel_views = joined_dataset.map(extract_channel_views)
+
+In [55]: channel_views.take(2)
+Out[55]: [(u'DEF', 1038), (u'DEF', 415)]
+
+10. Sum across all the channels
+
+Finally, we need to sum all of the views of each channel:
+
+In [56]: def sum_function(a, b):
+   ....:         return a+b
+   ....: 
+
+In [57]: sum_views = channel_views.reduceByKey(sum_function)
+
+Copy result back to Driver console using collect():
+
+In [59]: sum_views.collect()
+Out[59]: 
+[(u'XYZ', 5208016),
+ (u'DEF', 8032799),
+ (u'CNO', 3941177),
+ (u'BAT', 5099141),
+ (u'NOX', 2583583),
+ (u'CAB', 3940862),
+ (u'BOB', 2591062),
+ (u'ABC', 1115974),
+ (u'MAN', 6566187)]
+
+
+

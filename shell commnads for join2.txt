@@ -1,0 +1,2 @@
+$ cat join2_gen*.txt | ./join2_mapper.py | sort | ./join2_reducer.py
+$ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar    -input /user/cloudera/input_join2 -output /user/cloudera/output_new03_join2 -mapper /home/cloudera/join2_mapper.py  -reducer /home/cloudera/join2_reducer.py -numReduceTasks 1

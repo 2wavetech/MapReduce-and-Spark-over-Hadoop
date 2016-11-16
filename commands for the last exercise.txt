@@ -1,0 +1,53 @@
+In [1]: show_views_file = sc.textFile("input_join2/join2_gennum?.txt")
+In [2]: show_views_file.take(2)
+Out[2]: [u'Hourly_Sports,21', u'PostModern_Show,38']
+In [3]: def split_show_views(line):
+   ...:         line = line.strip()       # strip out carriage return
+   ...:         key_value  = line.split(',')  # split line, into key and value, returns a list
+   ...:         show = key_value[0]
+   ...:         views = key_value[1]
+   ...:         return (show, views)
+In [4]: show_views = show_views_file.map(split_show_views)
+In [5]: show_views.take(2)
+Out[5]: [(u'Hourly_Sports', u'21'), (u'PostModern_Show', u'38')]
+In [6]: show_channel_file = sc.textFile("input_join2/join2_genchan?.txt")
+In [7]: show_channel_file.take(2)
+Out[7]: [u'Hourly_Sports,DEF', u'Baked_News,BAT']
+In [8]: def split_show_channel(line):
+   ...:         line = line.strip()       # strip out carriage return
+   ...:         key_value  = line.split(',')  # split line, into key and value, returns a list
+   ...:         show = key_value[0]
+   ...:         channel = key_value[1]
+   ...:         return (show, channel)
+In [9]: show_channel = show_channel_file.map(split_show_channel)
+In [10]: show_channel.take(2)
+Out[10]: [(u'Hourly_Sports', u'DEF'), (u'Baked_News', u'BAT')]
+In [11]: joined_dataset = show_channel.join(show_views)
+In [12]: joined_dataset.take(2)
+Out[12]: 
+[(u'PostModern_Cooking', (u'DEF', u'1038')),
+ (u'PostModern_Cooking', (u'DEF', u'415'))]
+In [13]: def extract_channel_views(show_views_channel): 
+   ....:         show = show_views_channel[0]
+   ....:        channel_views = show_views_channel[1]
+   ....:        channel = channel_views[0]
+   ....:        views = int(channel_views[1])
+   ....:         return (channel, views)
+   ....: 
+In [14]: channel_views = joined_dataset.map(extract_channel_views)
+In [15]: channel_views.take(2)
+Out[15]: [(u'DEF', 1038), (u'DEF', 415)]
+In [16]: def sum_function(a, b):
+   ....:         return a+b
+   ....: 
+In [17]: channel_views.reduceByKey(sum_function).collect()
+Out[17]: 
+[(u'XYZ', 5208016),
+ (u'DEF', 8032799),
+ (u'CNO', 3941177),
+ (u'BAT', 5099141),
+ (u'NOX', 2583583),
+ (u'CAB', 3940862),
+ (u'BOB', 2591062),
+ (u'ABC', 1115974),
+ (u'MAN', 6566187)]

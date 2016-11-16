@@ -1,0 +1,22 @@
+1. UNIX command to make the mapper and reducer program executable:
+
+[cloudera@quickstart ~]$ chmod +x join1_mapper.py
+[cloudera@quickstart ~]$ chmod +x join1_reducer.py
+
+2. Follow the steps from Word-count assignment to set up the data in HDFS
+
+3. Test the program in serial execution using UNIX utility and piping command:
+
+cloudera@quickstart ~]$ cat join1_File*.txt | ./join1_mapper.py | sort | ./join1_reducer.py
+Apr-04 able 13 991
+Dec-15 able 100 991
+Jan-01 able 5 991
+Feb-02 about 3 11
+Mar-03 about 8 11
+Feb-22 actor 3 22
+Feb-23 burger 5 15
+Mar-08 burger 2 15
+
+4. Run the Hadoop streaming command (note that the output directory must be a new one)
+
+[cloudera@quickstart ~]$ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -input /user/cloudera/input -output /user/cloudera/output_join1 -mapper /home/cloudera/join1_mapper.py -reducer /home/cloudera/join1_reducer.py
